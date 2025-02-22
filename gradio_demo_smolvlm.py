@@ -4,19 +4,6 @@ import torch
 from transformers import AutoProcessor, AutoModelForImageTextToText
 from accelerate import Accelerator
 
-# Initialize the accelerator
-accelerator = Accelerator()
-
-# Load the model and processor with device mapping
-model_id = "HuggingFaceTB/SmolVLM2-256M-Video-Instruct"
-model = AutoModelForImageTextToText.from_pretrained(
-    model_id, torch_dtype=torch.float16 if accelerator.device.type == "cuda" else torch.float32,  # Use float16 for GPU, float32 for CPU/MPS
-).eval()
-processor = AutoProcessor.from_pretrained(model_id)
-
-# Prepare the model with the accelerator
-model = accelerator.prepare(model)
-
 def draw_arrow(image, click_coords, arrow_color=(255, 0, 0), thickness=5, tip_length=0.25):
     """Annotate the image with an arrow pointing to the clicked location.
     The dimension of the arrow is computed proportionally to the image size.
@@ -101,6 +88,19 @@ def describe_image(annotated_image, click_coords, original_image):
 
         # Remove the prompt from the response
         return generated_texts[0].split("Assistant: ")[-1].strip()
+
+# Initialize the accelerator
+accelerator = Accelerator()
+
+# Load the model and processor with device mapping
+model_id = "HuggingFaceTB/SmolVLM2-256M-Video-Instruct"
+model = AutoModelForImageTextToText.from_pretrained(
+    model_id, torch_dtype=torch.float16 if accelerator.device.type == "cuda" else torch.float32,  # Use float16 for GPU, float32 for CPU/MPS
+).eval()
+processor = AutoProcessor.from_pretrained(model_id)
+
+# Prepare the model with the accelerator
+model = accelerator.prepare(model)
 
 # Gradio interface
 with gr.Blocks() as demo:
