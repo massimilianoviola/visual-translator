@@ -2,4 +2,5 @@ accelerate
 gradio
 opencv-python
 torch
-transformers
+transformers @ git+https://github.com/huggingface/transformers.git
+num2words
