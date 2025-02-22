@@ -1,4 +1,5 @@
 accelerate
 gradio
+opencv-python
 torch
 transformers
