@@ -2,7 +2,20 @@ import cv2
 import gradio as gr
 import torch
 from transformers import AutoProcessor, AutoModelForImageTextToText
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+from accelerate import Accelerator
+
+# Initialize the accelerator
+accelerator = Accelerator()
+
+# Load the model and processor with device mapping
+model_id = "HuggingFaceTB/SmolVLM2-256M-Video-Instruct"
+model = AutoModelForImageTextToText.from_pretrained(
+    model_id, torch_dtype=torch.float16 if accelerator.device.type == "cuda" else torch.float32,  # Use float16 for GPU, float32 for CPU/MPS
+).eval()
+processor = AutoProcessor.from_pretrained(model_id)
+
+# Prepare the model with the accelerator
+model = accelerator.prepare(model)
 
 def draw_arrow(image, click_coords, arrow_color=(255, 0, 0), thickness=5, tip_length=0.25):
     """Annotate the image with an arrow pointing to the clicked location.
@@ -46,7 +59,7 @@ def update_click(image, evt: gr.SelectData):
 
 
 def describe_image(annotated_image, click_coords, original_image):
-    """Takes an uploaded image and generates a description using PaliGemma.
+    """Takes an uploaded image and generates a description using SmolVLM.
     If a click coordinate is provided, include it in the prompt.
     """
     image_to_use = annotated_image if annotated_image is not None else original_image
@@ -67,23 +80,17 @@ def describe_image(annotated_image, click_coords, original_image):
 
     prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
     inputs = processor(text=prompt, images=[image_to_use], return_tensors="pt")
-    inputs = inputs.to(DEVICE)
-
-   # Convert inputs to appropriate types
+    
+    # Handle different input types appropriately
     for key in inputs:
         if torch.is_tensor(inputs[key]):
-            # Convert pixel_values to float16, keep input_ids as long
-            if key == "pixel_values":
-                inputs[key] = inputs[key].to(dtype=torch.float16, device=DEVICE)
-            else:
-                inputs[key] = inputs[key].to(dtype=torch.long, device=DEVICE)
-        elif isinstance(inputs[key], list):
-            inputs[key] = [
-                x.to(dtype=torch.float16, device=DEVICE) if key == "pixel_values" and torch.is_tensor(x)
-                else x.to(dtype=torch.long, device=DEVICE) if torch.is_tensor(x)
-                else x
-                for x in inputs[key]
-            ]
+            if key in ["input_ids", "attention_mask"]:  # Text-related tensors
+                inputs[key] = inputs[key].to(dtype=torch.long, device=accelerator.device)
+            elif key.startswith("pixel"):  # Image-related tensors
+                inputs[key] = inputs[key].to(
+                    dtype=torch.float16 if accelerator.device.type == "cuda" else torch.float32,
+                    device=accelerator.device
+                )
 
     with torch.inference_mode():
         generation = model.generate(**inputs, max_new_tokens=500)
@@ -94,13 +101,6 @@ def describe_image(annotated_image, click_coords, original_image):
 
         # Remove the prompt from the response
         return generated_texts[0].split("Assistant: ")[-1].strip()
-
-# Load the model and processor
-model_id = "HuggingFaceTB/SmolVLM2-256M-Video-Instruct"
-model = AutoModelForImageTextToText.from_pretrained(
-    model_id, torch_dtype=torch.float16, device_map="auto"
-).eval()
-processor = AutoProcessor.from_pretrained(model_id)
 
 # Gradio interface
 with gr.Blocks() as demo:
