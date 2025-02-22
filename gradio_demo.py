@@ -1,8 +1,6 @@
 import cv2
 import gradio as gr
-import torch
-from transformers import PaliGemmaForConditionalGeneration, PaliGemmaProcessor
-
+from image_descriptor import SmolVLMDescriptor, PaliGemmaDescriptor
 
 def draw_arrow(image, click_coords, arrow_color=(255, 0, 0), thickness=5, tip_length=0.25):
     """Annotate the image with an arrow pointing to the clicked location.
@@ -45,38 +43,18 @@ def update_click(image, evt: gr.SelectData):
         return annotated, click_coords
     return image, None
 
+# Initialize the image descriptors
+smolvlm_model_id = "HuggingFaceTB/SmolVLM2-256M-Video-Instruct"
+paligemma_model_id = "google/paligemma2-3b-mix-448"
 
-def describe_image(annotated_image, click_coords, original_image):
-    """Takes an uploaded image and generates a description using PaliGemma.
-    If a click coordinate is provided, include it in the prompt.
-    """
-    image_to_use = annotated_image if annotated_image is not None else original_image
-    if click_coords is not None:
-        prompt = "Identify the object at the tip of the arrow, ignoring the arrow itself\n"
-    else:
-        prompt = "describe en"
+descriptors = {
+    smolvlm_model_id: SmolVLMDescriptor(smolvlm_model_id),
+    paligemma_model_id: PaliGemmaDescriptor(paligemma_model_id)
+}
 
-    model_inputs = (
-        processor(text=prompt, images=image_to_use, return_tensors="pt")
-        .to(torch.bfloat16)
-        .to(model.device)
-    )
-    input_len = model_inputs["input_ids"].shape[-1]
-
-    with torch.inference_mode():
-        generation = model.generate(**model_inputs, max_new_tokens=100, do_sample=False)
-        generation = generation[0][input_len:]
-        decoded = processor.decode(generation, skip_special_tokens=True)
-
-    return decoded
-
-
-# Load the model and processor
-model_id = "google/paligemma2-3b-mix-448"
-model = PaliGemmaForConditionalGeneration.from_pretrained(
-    model_id, torch_dtype=torch.bfloat16, device_map="auto"
-).eval()
-processor = PaliGemmaProcessor.from_pretrained(model_id)
+# Load both models
+for descriptor in descriptors.values():
+    descriptor.load_model()
 
 # Gradio interface
 with gr.Blocks() as demo:
@@ -88,6 +66,14 @@ with gr.Blocks() as demo:
             )
             # A state to hold the click coordinates
             click_coords_state = gr.State(None)
+            
+            # Add model selector dropdown
+            model_selector = gr.Dropdown(
+                choices=list(descriptors.keys()),
+                value=list(descriptors.keys())[0], # Use first model as default instead of hardcoding
+                label="Select Model"
+            )
+            
             generate_button = gr.Button("Generate Description")
             description_output = gr.Textbox(label="Generated Description")
         with gr.Column():
@@ -99,9 +85,12 @@ with gr.Blocks() as demo:
     )
 
     # Clicking the button runs the description function with the current image and click coordinates
+    def describe_image_with_model(annotated_image, click_coords, original_image, model_name):
+        return descriptors[model_name].describe_image(annotated_image, click_coords, original_image)
+
     generate_button.click(
-        describe_image,
-        inputs=[annotated_output, click_coords_state, image_input],
+        describe_image_with_model,
+        inputs=[annotated_output, click_coords_state, image_input, model_selector],
         outputs=description_output,
     )
 
