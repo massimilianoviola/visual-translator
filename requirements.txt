@@ -1,4 +1,5 @@
 accelerate
+elevenlabs
 gradio
 opencv-python
 torch
