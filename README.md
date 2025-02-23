@@ -1,6 +1,6 @@
-# Visual Translator Demo
+# Visual Translator
 
-Welcome to the **Visual Translator Demo**! This project is part of the **Entrepreneur First Hackathon 2025** in Zurich. Our goal is to create a translation companion that enhances the way people interact with their environment, enabling them to translate objects they can see and capture in real-time.
+Welcome to the **Visual Translator**! This project is part of the **Entrepreneur First Hackathon 2025** in Zurich. Our goal is to create a translation companion that enhances the way people interact with their environment, enabling them to translate objects they can see and capture in real-time.
 
 By simply uploading or selecting an image and clicking on the object you want to observe and translate, you’ll receive not only a translation but also a description, with sample sentences to help you better understand the context of the object.
 
@@ -36,19 +36,6 @@ By simply uploading or selecting an image and clicking on the object you want to
     python gradio_demo.py
     ```
 
-## 📦 Requirements
-
-- `accelerate`
-- `gradio`
-- `opencv-python`
-- `torch`
-- `transformers` (from GitHub)
-- `num2words`
-- `dotenv`
-- `elevenlabs`
-- `ffmpeg`
-
-
 ## 🌍 Usage
 
 1. Upload an image or choose one from the example options.
@@ -66,5 +53,5 @@ This project is brought to you by the talented team members participating in the
 
 ## 🔑 Notes
 
-- This demo uses two pre-trained models: **SmolVLM** and **PaliGemma**.
+- This demo uses two pre-trained models: **SmolVLM2** and **PaliGemma**.
 - Ensure that your ElevenLabs API key is correctly added to the `.env` file before running the application.
