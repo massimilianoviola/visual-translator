@@ -4,14 +4,13 @@ import os
 import cv2
 import gradio as gr
 import torch
-from elevenlabs import play
 from elevenlabs.client import ElevenLabs
 from transformers import pipeline
 
 from image_descriptor import PaliGemmaDescriptor, SmolVLMDescriptor
 
 
-def draw_arrow(image, click_coords, arrow_color=(255, 0, 0), thickness=5, tip_length=0.25):
+def draw_arrow(image, click_coords, arrow_color=(255, 0, 0), thickness=15, tip_length=0.25):
     """Annotate the image with an arrow pointing to the clicked location.
     The dimension of the arrow is computed proportionally to the image size.
     """
@@ -103,9 +102,12 @@ def describe_image_with_model(annotated_image, click_coords, original_image, mod
 
 def vocalize_text(text):
     """
-    This function converts the given text into speech using the ElevenLabs API.
+    Converts the given text into speech using the ElevenLabs API.
     """
     password = os.getenv("ELEVENLABS_API_KEY")
+    if password is None:
+        gr.Warning("ELEVENLABS_API_KEY is not set. Please configure your API key.")
+        return
 
     client = ElevenLabs(
         api_key=password,
@@ -117,12 +119,26 @@ def vocalize_text(text):
         model_id="eleven_multilingual_v2",
         output_format="mp3_44100_128",
     )
+    # Read all bytes from the generator
+    audio = b"".join(chunk for chunk in audio)
 
-    play(audio)
+    return audio
+
+
+def vocalize_all_text(translation, sentence1, sentence2, sentence3):
+    """
+    Vocalize all text inputs at once and return audio for each.
+    """
+    return (
+        vocalize_text(translation),
+        vocalize_text(sentence1),
+        vocalize_text(sentence2),
+        vocalize_text(sentence3),
+    )
 
 
 # Initialize the image descriptors
-smolvlm_model_id = "HuggingFaceTB/SmolVLM2-256M-Video-Instruct"
+smolvlm_model_id = "HuggingFaceTB/SmolVLM2-2.2B-Instruct"
 paligemma_model_id = "google/paligemma2-3b-mix-448"
 
 descriptors = {
@@ -165,12 +181,13 @@ with gr.Blocks() as demo:
             sentence1_output = gr.Textbox(label="Example Sentence 1")
             sentence2_output = gr.Textbox(label="Example Sentence 2")
             sentence3_output = gr.Textbox(label="Example Sentence 3")
-            vocalize_word_button = gr.Button("Vocalize Word")
-            vocalize_sentence1_button = gr.Button("Vocalize Sentence 1")
-            vocalize_sentence2_button = gr.Button("Vocalize Sentence 2")
-            vocalize_sentence3_button = gr.Button("Vocalize Sentence 3")
         with gr.Column():
             annotated_output = gr.Image(type="numpy", label="Annotated Image")
+            vocalize_all_button = gr.Button("Vocalize All")
+            word_audio = gr.Audio(label="Word Audio", format="mp3")
+            sentence1_audio = gr.Audio(label="Sentence 1 Audio", format="mp3")
+            sentence2_audio = gr.Audio(label="Sentence 2 Audio", format="mp3")
+            sentence3_audio = gr.Audio(label="Sentence 3 Audio", format="mp3")
 
     # When the image is clicked, update the annotated image and store click coordinates
     image_input.select(
@@ -188,29 +205,21 @@ with gr.Blocks() as demo:
         inputs=[all_descriptions_state, language_dropdown],
         outputs=[translation_output, sentence1_output, sentence2_output, sentence3_output],
     )
-    vocalize_word_button.click(
-        vocalize_text,
-        inputs=[translation_output],
-        outputs=[],
-    )
-    vocalize_sentence1_button.click(
-        vocalize_text,
-        inputs=[sentence1_output],
-        outputs=[],
-    )
-    vocalize_sentence2_button.click(
-        vocalize_text,
-        inputs=[sentence2_output],
-        outputs=[],
-    )
-    vocalize_sentence3_button.click(
-        vocalize_text,
-        inputs=[sentence3_output],
-        outputs=[],
+    vocalize_all_button.click(
+        vocalize_all_text,
+        inputs=[translation_output, sentence1_output, sentence2_output, sentence3_output],
+        outputs=[word_audio, sentence1_audio, sentence2_audio, sentence3_audio],
     )
     default_images = [
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Golde33443.jpg/500px-Golde33443.jpg",
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/500px-Cat03.jpg",
+        "./assets/realworldQA_25.jpg",
+        "./assets/realworldQA_48.jpg",
+        "./assets/realworldQA_378.jpg",
+        "./assets/realworldQA_499.jpg",
+        "./assets/realworldQA_503.jpg",
+        "./assets/realworldQA_546.jpg",
+        "./assets/realworldQA_564.jpg",
+        "./assets/realworldQA_724.jpg",
+        "./assets/realworldQA_760.jpg",
     ]
     gr.Examples(examples=default_images, inputs=image_input)
 
