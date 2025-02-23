@@ -1,8 +1,11 @@
 import json
+
 import cv2
 import gradio as gr
 import torch
-from transformers import PaliGemmaForConditionalGeneration, PaliGemmaProcessor, pipeline
+from transformers import pipeline
+
+from image_descriptor import PaliGemmaDescriptor, SmolVLMDescriptor
 
 
 def draw_arrow(image, click_coords, arrow_color=(255, 0, 0), thickness=5, tip_length=0.25):
@@ -47,39 +50,6 @@ def update_click(image, evt: gr.SelectData):
     return image, None
 
 
-def describe_image(annotated_image, click_coords, original_image):
-    """Take an uploaded image and generate a description using PaliGemma.
-    If a click coordinate is provided, include it in the prompt.
-    """
-    if click_coords is not None:
-        prompts = [
-            "Identify the object at the tip of the arrow, ignoring the arrow itself\n",
-            "caption en\n",
-        ]
-        images_list = [annotated_image, original_image]
-    else:
-        prompts = ["caption en\n", "caption en\n"]
-        images_list = [original_image, original_image]
-
-    model_inputs = (
-        processor(text=prompts, images=images_list, return_tensors="pt", padding=True)
-        .to(torch.bfloat16)
-        .to(model.device)
-    )
-
-    # Just take the first input length since they're all padded to the same length
-    input_len = model_inputs["input_ids"][0].shape[-1]
-
-    with torch.inference_mode():
-        generations = model.generate(**model_inputs, max_new_tokens=100, do_sample=False)
-        decoded = [
-            processor.decode(gen[input_len:], skip_special_tokens=True).strip()
-            for gen in generations
-        ]
-
-    return decoded[0], decoded
-
-
 def translate_description(descriptions, target_language):
     """
     Translate the input description (word) from English to the target language.
@@ -108,7 +78,7 @@ def translate_description(descriptions, target_language):
         {
             "role": "user",
             "content": f"""Translate the following word from English to {target_language}: {word}.
-        Also give me 3 sentences in the output language that use the word and that are coherent with this context: {context_description}\n""",
+            Also return 3 sentences in the output language that use the word and that are coherent with this context: {context_description}\n""",
         },
     ]
 
@@ -123,13 +93,23 @@ def translate_description(descriptions, target_language):
     return translation_text
 
 
-# Load the model and processor
-model_id = "google/paligemma2-3b-mix-448"
-model = PaliGemmaForConditionalGeneration.from_pretrained(
-    model_id, torch_dtype=torch.bfloat16, device_map="auto"
-).eval()
-processor = PaliGemmaProcessor.from_pretrained(model_id)
+def describe_image_with_model(annotated_image, click_coords, original_image, model_name):
+    return descriptors[model_name].describe_image(annotated_image, click_coords, original_image)
 
+
+# Initialize the image descriptors
+smolvlm_model_id = "HuggingFaceTB/SmolVLM2-256M-Video-Instruct"
+paligemma_model_id = "google/paligemma2-3b-mix-448"
+
+descriptors = {
+    smolvlm_model_id: SmolVLMDescriptor(smolvlm_model_id),
+    paligemma_model_id: PaliGemmaDescriptor(paligemma_model_id),
+}
+
+for descriptor in descriptors.values():
+    descriptor.load_model()
+
+# Initialize the translation pipeline
 llm_name = "meta-llama/Llama-3.2-3B-Instruct"
 pipe = pipeline("text-generation", model=llm_name, torch_dtype=torch.bfloat16, device_map="auto")
 
@@ -143,6 +123,12 @@ with gr.Blocks() as demo:
             )
             # A state to hold the click coordinates
             click_coords_state = gr.State(None)
+            # Add model selector dropdown
+            model_selector = gr.Dropdown(
+                choices=list(descriptors.keys()),
+                value=list(descriptors.keys())[0],
+                label="Select Model",
+            )
             describe_button = gr.Button("Generate Description")
             description_output = gr.Textbox(label="Generated Description")
             language_dropdown = gr.Dropdown(
@@ -162,8 +148,8 @@ with gr.Blocks() as demo:
     # Add gr.State to store full decoded list
     all_descriptions_state = gr.State()
     describe_button.click(
-        describe_image,
-        inputs=[annotated_output, click_coords_state, image_input],
+        describe_image_with_model,
+        inputs=[annotated_output, click_coords_state, image_input, model_selector],
         outputs=[description_output, all_descriptions_state],
     )
     translate_button.click(
