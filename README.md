@@ -27,12 +27,8 @@ By simply uploading or selecting an image and clicking on the object you want to
     pip install -r requirements.txt
     ```
 
-3. **Set up your ElevenLabs API key**:
-    Create a `.env` file in the root directory and add your API key:
-
-    ```
-    ELEVENLABS_API_KEY=your_api_key_here
-    ```
+3. **Get your ElevenLabs API key**:
+    During the execution of the `gradio_demo.py` you'll be asked to provide an API token
 
 4. **Run the demo**:
 
