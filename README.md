@@ -33,7 +33,7 @@ By simply uploading or selecting an image and clicking on the object you want to
 4. **Run the demo**:
 
     ```bash
-    python gradio_demo.py
+    ELEVENLABS_API_KEY=YOUR_API_KEY python gradio_demo.py
     ```
 
 ## 🌍 Usage
