@@ -1,8 +1,11 @@
 import json
+import os
 
 import cv2
 import gradio as gr
 import torch
+from elevenlabs import play
+from elevenlabs.client import ElevenLabs
 from transformers import pipeline
 
 from image_descriptor import PaliGemmaDescriptor, SmolVLMDescriptor
@@ -86,15 +89,36 @@ def translate_description(descriptions, target_language):
     # Assume the translation pipeline returns a list of outputs with a 'content' key.
     generated_translation = translation_outputs[0]["generated_text"][-1]
     parsed_translation = json.loads(generated_translation["content"])
-    translation_text = (
-        f"Translation: {parsed_translation['Translation']}\n"
-        "Sentences:\n" + "\n".join(parsed_translation["Sentences"])
+    return (
+        parsed_translation["Translation"],
+        parsed_translation["Sentences"][0],
+        parsed_translation["Sentences"][1],
+        parsed_translation["Sentences"][2],
     )
-    return translation_text
 
 
 def describe_image_with_model(annotated_image, click_coords, original_image, model_name):
     return descriptors[model_name].describe_image(annotated_image, click_coords, original_image)
+
+
+def vocalize_text(text):
+    """
+    This function converts the given text into speech using the ElevenLabs API.
+    """
+    password = os.getenv("ELEVENLABS_API_KEY")
+
+    client = ElevenLabs(
+        api_key=password,
+    )
+
+    audio = client.text_to_speech.convert(
+        text=text,
+        voice_id="iP95p4xoKVk53GoZ742B",
+        model_id="eleven_multilingual_v2",
+        output_format="mp3_44100_128",
+    )
+
+    play(audio)
 
 
 # Initialize the image descriptors
@@ -138,6 +162,13 @@ with gr.Blocks() as demo:
             )
             translate_button = gr.Button("Translate")
             translation_output = gr.Textbox(label="Translation Output")
+            sentence1_output = gr.Textbox(label="Example Sentence 1")
+            sentence2_output = gr.Textbox(label="Example Sentence 2")
+            sentence3_output = gr.Textbox(label="Example Sentence 3")
+            vocalize_word_button = gr.Button("Vocalize Word")
+            vocalize_sentence1_button = gr.Button("Vocalize Sentence 1")
+            vocalize_sentence2_button = gr.Button("Vocalize Sentence 2")
+            vocalize_sentence3_button = gr.Button("Vocalize Sentence 3")
         with gr.Column():
             annotated_output = gr.Image(type="numpy", label="Annotated Image")
 
@@ -155,7 +186,27 @@ with gr.Blocks() as demo:
     translate_button.click(
         translate_description,
         inputs=[all_descriptions_state, language_dropdown],
-        outputs=translation_output,
+        outputs=[translation_output, sentence1_output, sentence2_output, sentence3_output],
+    )
+    vocalize_word_button.click(
+        vocalize_text,
+        inputs=[translation_output],
+        outputs=[],
+    )
+    vocalize_sentence1_button.click(
+        vocalize_text,
+        inputs=[sentence1_output],
+        outputs=[],
+    )
+    vocalize_sentence2_button.click(
+        vocalize_text,
+        inputs=[sentence2_output],
+        outputs=[],
+    )
+    vocalize_sentence3_button.click(
+        vocalize_text,
+        inputs=[sentence3_output],
+        outputs=[],
     )
     default_images = [
         "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Golde33443.jpg/500px-Golde33443.jpg",
