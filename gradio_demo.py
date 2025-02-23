@@ -84,7 +84,7 @@ def translate_description(descriptions, target_language):
         },
     ]
 
-    translation_outputs = pipe(messages, max_new_tokens=256)
+    translation_outputs = pipe(messages, max_new_tokens=256, do_sample=False)
     # Assume the translation pipeline returns a list of outputs with a 'content' key.
     generated_translation = translation_outputs[0]["generated_text"][-1]
     parsed_translation = json.loads(generated_translation["content"])
@@ -151,7 +151,13 @@ for descriptor in descriptors.values():
 
 # Initialize the translation pipeline
 llm_name = "meta-llama/Llama-3.2-3B-Instruct"
-pipe = pipeline("text-generation", model=llm_name, torch_dtype=torch.bfloat16, device_map="auto")
+pipe = pipeline(
+    "text-generation",
+    model=llm_name,
+    torch_dtype=torch.bfloat16,
+    device_map="auto",
+    model_kwargs={"low_cpu_mem_usage": True, "use_cache": True},
+)
 
 # Gradio interface
 with gr.Blocks() as demo:
