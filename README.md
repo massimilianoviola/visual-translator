@@ -17,7 +17,7 @@ By simply uploading or selecting an image and clicking on the object you want to
 1. **Clone the repository**:
 
     ```bash
-    git clone https://github.com/your-repository/gradio_demo
+    git clone https://github.com/massimilianoviola/visual-translator.git
     cd gradio_demo
     ```
 
@@ -50,6 +50,8 @@ By simply uploading or selecting an image and clicking on the object you want to
 - `num2words`
 - `dotenv`
 - `elevenlabs`
+- `ffmpeg`
+
 
 ## 🌍 Usage
 
