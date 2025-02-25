@@ -25,19 +25,19 @@ The models can be accessed through an intuitive Gradio interface. Launch the app
 1. **Clone the repository**:
 
  ```bash
-    git clone https://github.com/massimilianoviola/visual-translator.git
+git clone https://github.com/massimilianoviola/visual-translator.git
  ```
 
 2. **Install the dependencies** (a Python virtual environment is recommended, e.g. conda):
 
  ```bash
-    pip install -r requirements.txt
+pip install -r requirements.txt
  ```
 
 3. **Run the demo** (an ElevenLabs API key is required):
 
  ```bash
-    ELEVENLABS_API_KEY=YOUR_API_KEY python gradio_demo.py
+ELEVENLABS_API_KEY=YOUR_API_KEY python gradio_demo.py
  ```
 
 ## 🌍 Usage
@@ -60,5 +60,5 @@ This project is brought to you by the talented team members participating in the
 
 ## 🔑 Notes
 
-- This demo uses two pre-trained VLM models: **SmolVLM2** and **PaliGemma 2 mix** and **Llama-3.2**. Make sure you have access to these models from Hugging Face and load an HF access token via cli.
-- Ensure that your ElevenLabs API key is passed as an environment variable to the demo.
+- This demo uses two pre-trained VLM models: **SmolVLM2** and **PaliGemma 2 mix**. It also uses **Llama-3.2** for translation and sentence generation. Make sure you have access to these models from Hugging Face and load an HF access token via cli.
+- Ensure that your ElevenLabs API key is passed as an environment variable to the demo or set as the global variable ELEVENLABS_API_KEY.
